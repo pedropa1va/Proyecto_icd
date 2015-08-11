@@ -7,101 +7,70 @@ library(wordcloud)
 library(devtools)
 library(rCharts)
 library(FactoMineR)
-posts <- read.table("data2.csv",header=TRUE,sep=";",dec=",",row.names=1)
-#Split Data frames por usuarios
+
+# Leyendo posts de user 1 y 2 con codificación ANSI
+data <- read.table("data.csv", header = TRUE, sep = ";", row.names = 1, encoding = "ANSI",
+                      nrows = 2000)
+# Leyendo todos los posts con codificación UTF-8
+posts <- read.table("data.csv", header = TRUE, sep = ";", row.names = 1, encoding = "UTF-8")
+
+# Se quitan los posts de user 1 y 2 con UTF-8 para reemplazarlos con el ANSI
+posts <- posts[-c(1:2000),]
+posts <- rbind(posts1, posts)
+
+# Ignorando las filas con posts NA
+posts <- na.omit(posts)
+
+# División de data frames por usuarios
 u1 <- posts[which(posts$id_user == 1),]
 u2 <- posts[which(posts$id_user == 2),]
 u3 <- posts[which(posts$id_user == 3),]
 u4 <- posts[which(posts$id_user == 4),]
 u5 <- posts[which(posts$id_user == 5),]
-#Data Frame con los posts de cada usuario
-df1 <- do.call("rbind", lapply(u1$post, as.data.frame))
-df2 <- do.call("rbind", lapply(u2$post, as.data.frame))
-df3 <- do.call("rbind", lapply(u3$post, as.data.frame))
-df4 <- do.call("rbind", lapply(u4$post, as.data.frame))
-df5 <- do.call("rbind", lapply(u5$post, as.data.frame))
-# Corpus y limpieza de cada data frame de cada usuario
-myCorpus1 <- Corpus(VectorSource(df1$X))
-myCorpus2 <- Corpus(VectorSource(df2$X))
-myCorpus3 <- Corpus(VectorSource(df3$X))
-myCorpus4 <- Corpus(VectorSource(df4$X))
-myCorpus5 <- Corpus(VectorSource(df5$X))
 
-tm_map(myCorpus1, function(x) iconv(enc2utf8(x), sub = "byte")) # problemas con el utf-8 en las pos impares
-tm_map(myCorpus2, function(x) iconv(enc2utf8(x), sub = "byte"))
-tm_map(myCorpus3, function(x) iconv(enc2utf8(x), sub = "byte"))
-tm_map(myCorpus4, function(x) iconv(enc2utf8(x), sub = "byte"))
-tm_map(myCorpus5, function(x) iconv(enc2utf8(x), sub = "byte"))
+# Corpus de cada usuario
+myCorpus1 <- Corpus(VectorSource(u1$post))
+myCorpus2 <- Corpus(VectorSource(u2$post))
+myCorpus3 <- Corpus(VectorSource(u3$post))
+myCorpus4 <- Corpus(VectorSource(u4$post))
+myCorpus5 <- Corpus(VectorSource(u5$post))
 
-myCorpus1 <- tm_map(myCorpus1, PlainTextDocument)
-myCorpus2 <- tm_map(myCorpus2, PlainTextDocument)
-myCorpus3 <- tm_map(myCorpus3, PlainTextDocument)
-myCorpus4 <- tm_map(myCorpus4, PlainTextDocument)
-myCorpus5 <- tm_map(myCorpus5, PlainTextDocument)
-# convert to lower case
-myCorpus1 <- tm_map(myCorpus1, tolower,lazy=TRUE)
-myCorpus2 <- tm_map(myCorpus2, tolower,lazy=TRUE)
-myCorpus3 <- tm_map(myCorpus3, tolower,lazy=TRUE)
-myCorpus4 <- tm_map(myCorpus4, tolower,lazy=TRUE)
-myCorpus5 <- tm_map(myCorpus5, tolower,lazy=TRUE)
+# Funciones de limpieza
+removeURL <- function(x){
+  gsub("http[[:alnum:]]*", "", x)
+  gsub("www[[:alnum:]]*", "", x)
+}
+removeLaugh <- function(x){
+  gsub("\b(?:a*(?:ja)+j?|(?:l+o+)+l+)\b", "", x)
+  gsub("\b(?:a*(?:ha)+h?|(?:l+o+)+l+)\b", "", x)
+}
 
-# remove punctuation
-myCorpus1 <- tm_map(myCorpus1, removePunctuation,lazy=TRUE)
-myCorpus2 <- tm_map(myCorpus2, removePunctuation,lazy=TRUE)
-myCorpus3 <- tm_map(myCorpus3, removePunctuation,lazy=TRUE)
-myCorpus4 <- tm_map(myCorpus4, removePunctuation,lazy=TRUE)
-myCorpus5 <- tm_map(myCorpus5, removePunctuation,lazy=TRUE)
+# add extra stop words
+myStopwords <- c(stopwords('english'), stopwords('spanish'), "xd", "xD", "like", "RT", "etc",
+                 "csm", "para", "ser", "wtf", "sin", "mas", "una", "los", "nos")
 
-# remove numbers
-myCorpus1 <- tm_map(myCorpus1, removeNumbers,lazy=TRUE)
-myCorpus2 <- tm_map(myCorpus2, removeNumbers,lazy=TRUE)
-myCorpus3 <- tm_map(myCorpus3, removeNumbers,lazy=TRUE)
-myCorpus4 <- tm_map(myCorpus4, removeNumbers,lazy=TRUE)
-myCorpus5 <- tm_map(myCorpus5, removeNumbers,lazy=TRUE)
+# Limpieza de cada corpus
+cleanCorpus = function(myCorpus){
+  myCorpus <- tm_map(myCorpus, PlainTextDocument)
+  # convert to lower case
+  myCorpus <- tm_map(myCorpus, tolower, lazy=TRUE)
+  # remove punctuation
+  myCorpus <- tm_map(myCorpus, removePunctuation, lazy=TRUE)
+  # remove numbers
+  myCorpus <- tm_map(myCorpus, removeNumbers, lazy=TRUE)
+  # remove URLs
+  myCorpus <- tm_map(myCorpus, removeURL, lazy=TRUE)
+  # remove laughter
+  myCorpus <- tm_map(myCorpus, removeLaugh, lazy=TRUE)
+  # remove stopwords
+  myCorpus <- tm_map(myCorpus, removeWords, myStopwords, lazy=TRUE)
+}
 
-# remove URLs
-removeURL <- function(x) gsub("http[[:alnum:]]*", "", x)
-removeURL2 <- function(x) gsub("www[[:alnum:]]*", "", x)
-removejaja <- function(x) gsub("\b(?:a*(?:ja)+j?|(?:l+o+)+l+)\b", "", x)
-removehaha <- function(x) gsub("\b(?:a*(?:ha)+h?|(?:l+o+)+l+)\b", "", x)
-
-myCorpus1 <- tm_map(myCorpus1, removeURL,lazy=TRUE)
-myCorpus1 <- tm_map(myCorpus1, removeURL2,lazy=TRUE)
-myCorpus1 <- tm_map(myCorpus1, removejaja,lazy=TRUE)
-myCorpus1 <- tm_map(myCorpus1, removehaha,lazy=TRUE)
-
-myCorpus2 <- tm_map(myCorpus2, removeURL,lazy=TRUE)
-myCorpus2 <- tm_map(myCorpus2, removeURL2,lazy=TRUE)
-myCorpus2 <- tm_map(myCorpus2, removejaja,lazy=TRUE)
-myCorpus2 <- tm_map(myCorpus2, removehaha,lazy=TRUE)
-
-myCorpus3 <- tm_map(myCorpus3, removeURL,lazy=TRUE)
-myCorpus3 <- tm_map(myCorpus3, removeURL2,lazy=TRUE)
-myCorpus3 <- tm_map(myCorpus3, removejaja,lazy=TRUE)
-myCorpus3 <- tm_map(myCorpus3, removehaha,lazy=TRUE)
-
-myCorpus4 <- tm_map(myCorpus4, removeURL,lazy=TRUE)
-myCorpus4 <- tm_map(myCorpus4, removeURL2,lazy=TRUE)
-myCorpus4 <- tm_map(myCorpus4, removejaja,lazy=TRUE)
-myCorpus4 <- tm_map(myCorpus4, removehaha,lazy=TRUE)
-
-myCorpus5 <- tm_map(myCorpus5, removeURL,lazy=TRUE)
-myCorpus5 <- tm_map(myCorpus5, removeURL2,lazy=TRUE)
-myCorpus5 <- tm_map(myCorpus5, removejaja,lazy=TRUE)
-myCorpus5 <- tm_map(myCorpus5, removehaha,lazy=TRUE)
-
-# add two extra stop words: "available" and "via"
-myStopwords <- c(stopwords('english'),stopwords('spanish'),"NA","xd","xD","like","RT","etc","csm","para","ser","wtf","sin","mas","una","los","nos")
-# remove "r" and "big" from stopwords
-#myStopwords <- setdiff(myStopwords, c("r", "big"))
-# remove stopwords from corpus
-myCorpus1 <- tm_map(myCorpus1, removeWords, myStopwords,lazy=TRUE)
-myCorpus2 <- tm_map(myCorpus2, removeWords, myStopwords,lazy=TRUE)
-myCorpus3 <- tm_map(myCorpus3, removeWords, myStopwords,lazy=TRUE)
-myCorpus4 <- tm_map(myCorpus4, removeWords, myStopwords,lazy=TRUE)
-myCorpus5 <- tm_map(myCorpus5, removeWords, myStopwords,lazy=TRUE)
-
-
+cleanCorpus(myCorpus1)
+cleanCorpus(myCorpus2)
+cleanCorpus(myCorpus3)
+cleanCorpus(myCorpus4)
+cleanCorpus(myCorpus5)
 
 #Stemming words
 library(Snowball)
@@ -111,7 +80,6 @@ library(RWekajars)
 
 # keep a copy of corpus to use later as a dictionary for stem
 myCorpusCopy <- myCorpus
-
 
 myCorpus1 <- tm_map(myCorpus1, stemDocument,language="english",lazy=TRUE)
 myCorpus2 <- tm_map(myCorpus2, stemDocument,language="english",lazy=TRUE)
