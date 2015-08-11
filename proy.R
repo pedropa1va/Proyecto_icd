@@ -16,7 +16,7 @@ posts <- read.table("data.csv", header = TRUE, sep = ";", row.names = 1, encodin
 
 # Se quitan los posts de user 1 y 2 con UTF-8 para reemplazarlos con el ANSI
 posts <- posts[-c(1:2000),]
-posts <- rbind(posts1, posts)
+posts <- rbind(data, posts)
 
 # Ignorando las filas con posts NA
 posts <- na.omit(posts)
@@ -72,12 +72,7 @@ cleanCorpus(myCorpus3)
 cleanCorpus(myCorpus4)
 cleanCorpus(myCorpus5)
 
-#Stemming words
-library(Snowball)
-library(RWeka)
-library(rJava)
-library(RWekajars)
-
+# Stemming words
 # keep a copy of corpus to use later as a dictionary for stem
 myCorpusCopy <- myCorpus
 
