@@ -5,7 +5,6 @@ library(RWeka)
 library(rJava)
 library(RWekajars)
 library(wordcloud)
-library(devtools)
 library(rCharts)
 library(FactoMineR)
 
