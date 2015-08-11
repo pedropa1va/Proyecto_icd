@@ -53,43 +53,39 @@ removeLaugh <- function(x){
 
 # add extra stop words
 myStopwords <- c(stopwords('english'), stopwords('spanish'), "xd", "xD", "like", "RT", "etc",
-                 "csm", "para", "ser", "wtf", "sin", "mas", "una", "los", "nos")
+                 "csm", "para", "ser", "wtf", "mas", "una", "nos", "est","esto", "este")
 skipWords <- function(x) removeWords(x, myStopwords)
-
-myStopwords2 <- c("est","esto","este")
-skipWords2 <- function(x) removeWords(x, myStopwords2)
 
 # Stemming words
 # por alguna no razón no agarra el spanish... Igual no creo que sea necesario hacer stemming
 #stemDoc_es <- function(x) stemDocument(x, language = meta(x, "spanish"))
 #stemDoc_es <- function(x) stemDocument(x, language ="spanish")
 
-cleanFuns <- list(tolower, removePunctuation, removeNumbers, skipWords, removeURL,
-                  removeLaugh, stemDocument, skipWords2)
+cleanFuns <- list(PlainTextDocument, tolower, removePunctuation, removeNumbers, removeURL,
+                  removeLaugh, stemDocument, skipWords)
 
 # Limpieza de cada corpus
-myCorpus1 <- tm_map(myCorpus1, FUN = tm_reduce, tmFuns = cleanFuns, lazy = TRUE)
-myCorpus2 <- tm_map(myCorpus2, FUN = tm_reduce, tmFuns = cleanFuns, lazy = TRUE)
-myCorpus3 <- tm_map(myCorpus3, FUN = tm_reduce, tmFuns = cleanFuns, lazy = TRUE)
-myCorpus4 <- tm_map(myCorpus4, FUN = tm_reduce, tmFuns = cleanFuns, lazy = TRUE)
-myCorpus5 <- tm_map(myCorpus5, FUN = tm_reduce, tmFuns = cleanFuns, lazy = TRUE)
+myCorpus1 <- tm_map(myCorpus1, FUN = tm_reduce, tmFuns = cleanFuns)
+myCorpus2 <- tm_map(myCorpus2, FUN = tm_reduce, tmFuns = cleanFuns)
+myCorpus3 <- tm_map(myCorpus3, FUN = tm_reduce, tmFuns = cleanFuns)
+myCorpus4 <- tm_map(myCorpus4, FUN = tm_reduce, tmFuns = cleanFuns)
+myCorpus5 <- tm_map(myCorpus5, FUN = tm_reduce, tmFuns = cleanFuns)
 
-#para ver que hay en los primeros 500
+# Para ver que hay en los primeros 500 documentos
 for (i in 1:500) {
   cat(paste("[[", i, "]] ", sep=""))
-  writeLines(strwrap(myCorpus2[[i]], width=85))
+  writeLines(strwrap(myCorpus1[[i]], width=85))
 }
 
-# Matrices de term document para cada usuario
-myTdm1 <- TermDocumentMatrix(myCorpus1,control=list(wordLengths=c(1,Inf)))
-myTdm2 <- TermDocumentMatrix(myCorpus2,control=list(wordLengths=c(1,Inf)))
-myTdm3 <- TermDocumentMatrix(myCorpus3,control=list(wordLengths=c(1,Inf)))
-myTdm4 <- TermDocumentMatrix(myCorpus4,control=list(wordLengths=c(1,Inf)))
-myTdm5 <- TermDocumentMatrix(myCorpus5,control=list(wordLengths=c(1,Inf)))
+# Matriz Term-Document para cada usuario
+myTdm1 <- TermDocumentMatrix(myCorpus1, control=list(wordLengths=c(2,Inf)))
+myTdm2 <- TermDocumentMatrix(myCorpus2, control=list(wordLengths=c(2,Inf)))
+myTdm3 <- TermDocumentMatrix(myCorpus3, control=list(wordLengths=c(2,Inf)))
+myTdm4 <- TermDocumentMatrix(myCorpus4, control=list(wordLengths=c(2,Inf)))
+myTdm5 <- TermDocumentMatrix(myCorpus5, control=list(wordLengths=c(2,Inf)))
 
-
-#myTdm <- TermDocumentMatrix(myCorpus,control=list(minWordLength=1))
 inspect(myTdm1)
+
 # inspect frequent words por cada usuario
 findFreqTerms(myTdm1, lowfreq=25)
 termFrequency1 <- rowSums(as.matrix(myTdm1))
@@ -99,16 +95,13 @@ findFreqTerms(myTdm2, lowfreq=25)
 termFrequency2 <- rowSums(as.matrix(myTdm2))
 termFrequency2 <- subset(termFrequency2, termFrequency2>=15)
 
-
 findFreqTerms(myTdm3, lowfreq=25)
 termFrequency3 <- rowSums(as.matrix(myTdm3))
 termFrequency3 <- subset(termFrequency3, termFrequency3>=15)
 
-
 findFreqTerms(myTdm4, lowfreq=25)
 termFrequency4 <- rowSums(as.matrix(myTdm4))
 termFrequency4 <- subset(termFrequency4, termFrequency4>=15)
-
 
 findFreqTerms(myTdm5, lowfreq=25)
 termFrequency5 <- rowSums(as.matrix(myTdm5))
@@ -116,15 +109,16 @@ termFrequency5 <- subset(termFrequency5, termFrequency5>=15)
 
 
 
+
+# USUARIO 1
+
 #Impresion Grafica usuario 1
 barplot(termFrequency1, las=2)
-library(wordcloud)
 m <- as.matrix(myTdm1)
 wordFreq <- sort(rowSums(m), decreasing=TRUE)
 set.seed (375)
-grayLevels <- gray( (wordFreq+10) / (max(wordFreq)+10))
-wordcloud(words=names(wordFreq), freq=wordFreq, min.freq=3,random.order=F, colors=grayLevels)
-
+wordcloud(words = names(wordFreq), freq = wordFreq, min.freq = 8, random.order = FALSE,
+          colors = c("grey","dark grey","blue","green","orange","red"))
 
 # remove sparse terms usuario 1
 myTdmAux <- removeSparseTerms(myTdm1, sparse=0.985) 
@@ -139,34 +133,25 @@ plot(fit)
 # cut tree into 9 clusters
 rect.hclust(fit, k=5)
 groups <- cutree(fit, k=5)
-#groups
-
-#write.csv(groups, file = "MyGroups.csv") #-->van a carpeta personal
 
 # count frequency 
 temp <- inspect(myTdmAux)
 FreqMat1 <- data.frame(ST = rownames(temp), Freq = rowSums(temp))
 row.names(FreqMat1) <- NULL
 FreqMat1
-#FreqMat2 <- FreqMat
 
-#FreqMat2$grupos <- groups
 
-# Ahora exportamos el archivo FreqMat2 que tiene las palabras con su grupo y la frecuencia
-#write.csv(FreqMat2, file = "grupos.csv")
 
 
 # USUARIO 2
 
 #Impresion Grafica usuario 2
 barplot(termFrequency2, las=2)
-library(wordcloud)
 m <- as.matrix(myTdm2)
 wordFreq <- sort(rowSums(m), decreasing=TRUE)
 set.seed (375)
 grayLevels <- gray( (wordFreq+10) / (max(wordFreq)+10))
 wordcloud(words=names(wordFreq), freq=wordFreq, min.freq=3,random.order=F, colors=grayLevels)
-
 
 # remove sparse terms usuario 2
 myTdmAux <- removeSparseTerms(myTdm2, sparse=0.985) 
@@ -174,28 +159,23 @@ m2 <- as.matrix(myTdmAux)
 frequency <- colSums(m2)
 frequency <- sort(frequency, decreasing=TRUE)
 frequency
+
 # cluster terms
 distMatrix <- dist(scale(m2))
 fit <- hclust(distMatrix, method="single")
 plot(fit)
+
 # cut tree into 9 clusters
 rect.hclust(fit, k=5)
 groups <- cutree(fit, k=5)
-#groups
-
-#write.csv(groups, file = "MyGroups.csv") #-->van a carpeta personal
 
 # count frequency 
 temp <- inspect(myTdmAux)
 FreqMat2 <- data.frame(ST = rownames(temp), Freq = rowSums(temp))
 row.names(FreqMat2) <- NULL
 FreqMat2
-#FreqMat2 <- FreqMat
 
-#FreqMat2$grupos <- groups
 
-# Ahora exportamos el archivo FreqMat2 que tiene las palabras con su grupo y la frecuencia
-#write.csv(FreqMat2, file = "grupos.csv")
 
 
 # USUARIO 3
@@ -203,13 +183,11 @@ FreqMat2
 
 #Impresion Grafica usuario 3
 barplot(termFrequency3, las=2)
-library(wordcloud)
 m <- as.matrix(myTdm3)
 wordFreq <- sort(rowSums(m), decreasing=TRUE)
 set.seed (375)
 grayLevels <- gray( (wordFreq+10) / (max(wordFreq)+10))
 wordcloud(words=names(wordFreq), freq=wordFreq, min.freq=3,random.order=F, colors=grayLevels)
-
 
 # remove sparse terms usuario 3
 myTdmAux <- removeSparseTerms(myTdm3, sparse=0.985) 
@@ -217,28 +195,21 @@ m2 <- as.matrix(myTdmAux)
 frequency <- colSums(m2)
 frequency <- sort(frequency, decreasing=TRUE)
 frequency
+
 # cluster terms
 distMatrix <- dist(scale(m2))
 fit <- hclust(distMatrix, method="single")
 plot(fit)
+
 # cut tree into 9 clusters
 rect.hclust(fit, k=5)
 groups <- cutree(fit, k=5)
-#groups
-
-#write.csv(groups, file = "MyGroups.csv") #-->van a carpeta personal
 
 # count frequency 
 temp <- inspect(myTdmAux)
 FreqMat3 <- data.frame(ST = rownames(temp), Freq = rowSums(temp))
 row.names(FreqMat3) <- NULL
 FreqMat3
-#FreqMat2 <- FreqMat
-
-#FreqMat2$grupos <- groups
-
-# Ahora exportamos el archivo FreqMat2 que tiene las palabras con su grupo y la frecuencia
-#write.csv(FreqMat2, file = "grupos.csv")
 
 
 
@@ -248,13 +219,11 @@ FreqMat3
 
 #Impresion Grafica usuario 4
 barplot(termFrequency4, las=2)
-library(wordcloud)
 m <- as.matrix(myTdm4)
 wordFreq <- sort(rowSums(m), decreasing=TRUE)
 set.seed (375)
 grayLevels <- gray( (wordFreq+10) / (max(wordFreq)+10))
 wordcloud(words=names(wordFreq), freq=wordFreq, min.freq=3,random.order=F, colors=grayLevels)
-
 
 # remove sparse terms usuario 4
 myTdmAux <- removeSparseTerms(myTdm4, sparse=0.985) 
@@ -262,28 +231,22 @@ m2 <- as.matrix(myTdmAux)
 frequency <- colSums(m2)
 frequency <- sort(frequency, decreasing=TRUE)
 frequency
+
 # cluster terms
 distMatrix <- dist(scale(m2))
 fit <- hclust(distMatrix, method="single")
 plot(fit)
+
 # cut tree into 9 clusters
 rect.hclust(fit, k=5)
 groups <- cutree(fit, k=5)
-#groups
-
-#write.csv(groups, file = "MyGroups.csv") #-->van a carpeta personal
 
 # count frequency 
 temp <- inspect(myTdmAux)
 FreqMat4 <- data.frame(ST = rownames(temp), Freq = rowSums(temp))
 row.names(FreqMat4) <- NULL
 FreqMat4
-#FreqMat2 <- FreqMat
 
-#FreqMat2$grupos <- groups
-
-# Ahora exportamos el archivo FreqMat2 que tiene las palabras con su grupo y la frecuencia
-#write.csv(FreqMat2, file = "grupos.csv")
 
 
 
@@ -291,13 +254,11 @@ FreqMat4
 
 #Impresion Grafica usuario 5
 barplot(termFrequency5, las=2)
-library(wordcloud)
 m <- as.matrix(myTdm5)
 wordFreq <- sort(rowSums(m), decreasing=TRUE)
 set.seed (375)
 grayLevels <- gray( (wordFreq+10) / (max(wordFreq)+10))
 wordcloud(words=names(wordFreq), freq=wordFreq, min.freq=3,random.order=F, colors=grayLevels)
-
 
 # remove sparse terms usuario 5
 myTdmAux <- removeSparseTerms(myTdm5, sparse=0.985) 
@@ -305,31 +266,20 @@ m2 <- as.matrix(myTdmAux)
 frequency <- colSums(m2)
 frequency <- sort(frequency, decreasing=TRUE)
 frequency
+
 # cluster terms
 distMatrix <- dist(scale(m2))
 fit <- hclust(distMatrix, method="single")
 plot(fit)
+
 # cut tree into 9 clusters
 rect.hclust(fit, k=5)
 groups <- cutree(fit, k=5)
-#groups
-
-#write.csv(groups, file = "MyGroups.csv") #-->van a carpeta personal
 
 # count frequency 
 temp <- inspect(myTdmAux)
 FreqMat5 <- data.frame(ST = rownames(temp), Freq = rowSums(temp))
 row.names(FreqMat5) <- NULL
 FreqMat5
-#FreqMat2 <- FreqMat
-
-#FreqMat2$grupos <- groups
-
-# Ahora exportamos el archivo FreqMat2 que tiene las palabras con su grupo y la frecuencia
-#write.csv(FreqMat2, file = "grupos.csv")
-
-
-
-
 
 
