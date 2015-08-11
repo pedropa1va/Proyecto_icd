@@ -1,5 +1,6 @@
 library(tm)
 library(Snowball)
+library(SnowballC)
 library(RWeka)
 library(rJava)
 library(RWekajars)
@@ -35,6 +36,11 @@ myCorpus3 <- Corpus(VectorSource(u3$post))
 myCorpus4 <- Corpus(VectorSource(u4$post))
 myCorpus5 <- Corpus(VectorSource(u5$post))
 
+# Para ver qué hay dentro del corpus
+inspect(myCorpus1)
+inspect(myCorpus1[1])
+writeLines(as.character(myCorpus1[[1]]))
+
 # Funciones de limpieza
 removeURL <- function(x){
   gsub("http[[:alnum:]]*", "", x)
@@ -48,67 +54,34 @@ removeLaugh <- function(x){
 # add extra stop words
 myStopwords <- c(stopwords('english'), stopwords('spanish'), "xd", "xD", "like", "RT", "etc",
                  "csm", "para", "ser", "wtf", "sin", "mas", "una", "los", "nos")
+skipWords <- function(x) removeWords(x, myStopwords)
 
-# Limpieza de cada corpus
-cleanCorpus = function(myCorpus){
-  myCorpus <- tm_map(myCorpus, PlainTextDocument)
-  # convert to lower case
-  myCorpus <- tm_map(myCorpus, tolower, lazy=TRUE)
-  # remove punctuation
-  myCorpus <- tm_map(myCorpus, removePunctuation, lazy=TRUE)
-  # remove numbers
-  myCorpus <- tm_map(myCorpus, removeNumbers, lazy=TRUE)
-  # remove URLs
-  myCorpus <- tm_map(myCorpus, removeURL, lazy=TRUE)
-  # remove laughter
-  myCorpus <- tm_map(myCorpus, removeLaugh, lazy=TRUE)
-  # remove stopwords
-  myCorpus <- tm_map(myCorpus, removeWords, myStopwords, lazy=TRUE)
-}
-
-cleanCorpus(myCorpus1)
-cleanCorpus(myCorpus2)
-cleanCorpus(myCorpus3)
-cleanCorpus(myCorpus4)
-cleanCorpus(myCorpus5)
+myStopwords2 <- c("est","esto","este")
+skipWords2 <- function(x) removeWords(x, myStopwords2)
 
 # Stemming words
-# keep a copy of corpus to use later as a dictionary for stem
-myCorpusCopy <- myCorpus
+# por alguna no razón no agarra el spanish... Igual no creo que sea necesario hacer stemming
+#stemDoc_es <- function(x) stemDocument(x, language = meta(x, "spanish"))
+#stemDoc_es <- function(x) stemDocument(x, language ="spanish")
 
-myCorpus1 <- tm_map(myCorpus1, stemDocument,language="english",lazy=TRUE)
-myCorpus2 <- tm_map(myCorpus2, stemDocument,language="english",lazy=TRUE)
-myCorpus3 <- tm_map(myCorpus3, stemDocument,language="english",lazy=TRUE)
-myCorpus4 <- tm_map(myCorpus4, stemDocument,language="english",lazy=TRUE)
-myCorpus5 <- tm_map(myCorpus5, stemDocument,language="english",lazy=TRUE)
+cleanFuns <- list(tolower, removePunctuation, removeNumbers, skipWords, removeURL,
+                  removeLaugh, stemDocument, skipWords2)
 
-myStopwords2 <- c("est","esto","xd")
-
-myCorpus1 <- tm_map(myCorpus1, PlainTextDocument)
-myCorpus1 <- tm_map(myCorpus1, removeWords, myStopwords2,lazy=TRUE)
-
-myCorpus2 <- tm_map(myCorpus2, PlainTextDocument)
-myCorpus2 <- tm_map(myCorpus2, removeWords, myStopwords2,lazy=TRUE)
-
-myCorpus3 <- tm_map(myCorpus3, PlainTextDocument)
-myCorpus3 <- tm_map(myCorpus3, removeWords, myStopwords2,lazy=TRUE)
-
-myCorpus4 <- tm_map(myCorpus4, PlainTextDocument)
-myCorpus4 <- tm_map(myCorpus4, removeWords, myStopwords2,lazy=TRUE)
-
-myCorpus5 <- tm_map(myCorpus5, PlainTextDocument)
-myCorpus5 <- tm_map(myCorpus5, removeWords, myStopwords2,lazy=TRUE)
+# Limpieza de cada corpus
+myCorpus1 <- tm_map(myCorpus1, FUN = tm_reduce, tmFuns = cleanFuns, lazy = TRUE)
+myCorpus2 <- tm_map(myCorpus2, FUN = tm_reduce, tmFuns = cleanFuns, lazy = TRUE)
+myCorpus3 <- tm_map(myCorpus3, FUN = tm_reduce, tmFuns = cleanFuns, lazy = TRUE)
+myCorpus4 <- tm_map(myCorpus4, FUN = tm_reduce, tmFuns = cleanFuns, lazy = TRUE)
+myCorpus5 <- tm_map(myCorpus5, FUN = tm_reduce, tmFuns = cleanFuns, lazy = TRUE)
 
 #para ver que hay en los primeros 500
 for (i in 1:500) {
-  
   cat(paste("[[", i, "]] ", sep=""))
-  writeLines(strwrap(myCorpus2[[i]], width=73))
-  
+  writeLines(strwrap(myCorpus2[[i]], width=85))
 }
-#Matrices de term document para cada usuario
 
-myTdm1 <- TermDocumentMatrix(myCorpus1,control=list(wordLengths=c(1,Inf))) #Matriz
+# Matrices de term document para cada usuario
+myTdm1 <- TermDocumentMatrix(myCorpus1,control=list(wordLengths=c(1,Inf)))
 myTdm2 <- TermDocumentMatrix(myCorpus2,control=list(wordLengths=c(1,Inf)))
 myTdm3 <- TermDocumentMatrix(myCorpus3,control=list(wordLengths=c(1,Inf)))
 myTdm4 <- TermDocumentMatrix(myCorpus4,control=list(wordLengths=c(1,Inf)))
