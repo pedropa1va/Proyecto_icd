@@ -4,6 +4,7 @@ library(RWeka)
 library(rJava)
 library(RWekajars)
 library(wordcloud)
+library(devtools)
 library(rCharts)
 library(FactoMineR)
 posts <- read.table("data2.csv",header=TRUE,sep=";",dec=",",row.names=1)
@@ -397,7 +398,6 @@ FreqMat5
 
 
 intersect(FreqMat5$ST,FreqMat4$ST)
-
 
 
 
