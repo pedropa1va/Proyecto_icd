@@ -1,6 +1,5 @@
 library(tm)
 library(Snowball)
-library(SnowballC)
 library(RWeka)
 library(rJava)
 library(RWekajars)
@@ -8,80 +7,145 @@ library(wordcloud)
 library(devtools)
 library(rCharts)
 library(FactoMineR)
-
-# Leyendo posts de user 1 y 2 con codificación ANSI
-data <- read.table("data.csv", header = TRUE, sep = ";", row.names = 1, encoding = "ANSI",
-                      nrows = 2000)
-# Leyendo todos los posts con codificación UTF-8
-posts <- read.table("data.csv", header = TRUE, sep = ";", row.names = 1, encoding = "UTF-8")
-
-# Se quitan los posts de user 1 y 2 con UTF-8 para reemplazarlos con el ANSI
-posts <- posts[-c(1:2000),]
-posts <- rbind(data, posts)
-
-# Ignorando las filas con posts NA
-posts <- na.omit(posts)
-
-# División de data frames por usuarios
+posts <- read.table("data2.csv",header=TRUE,sep=";",dec=",",row.names=1)
+#Split Data frames por usuarios
 u1 <- posts[which(posts$id_user == 1),]
 u2 <- posts[which(posts$id_user == 2),]
 u3 <- posts[which(posts$id_user == 3),]
 u4 <- posts[which(posts$id_user == 4),]
 u5 <- posts[which(posts$id_user == 5),]
+#Data Frame con los posts de cada usuario
+df1 <- do.call("rbind", lapply(u1$post, as.data.frame))
+df2 <- do.call("rbind", lapply(u2$post, as.data.frame))
+df3 <- do.call("rbind", lapply(u3$post, as.data.frame))
+df4 <- do.call("rbind", lapply(u4$post, as.data.frame))
+df5 <- do.call("rbind", lapply(u5$post, as.data.frame))
+# Corpus y limpieza de cada data frame de cada usuario
+myCorpus1 <- Corpus(VectorSource(df1$X))
+myCorpus2 <- Corpus(VectorSource(df2$X))
+myCorpus3 <- Corpus(VectorSource(df3$X))
+myCorpus4 <- Corpus(VectorSource(df4$X))
+myCorpus5 <- Corpus(VectorSource(df5$X))
 
-# Corpus de cada usuario
-myCorpus1 <- Corpus(VectorSource(u1$post))
-myCorpus2 <- Corpus(VectorSource(u2$post))
-myCorpus3 <- Corpus(VectorSource(u3$post))
-myCorpus4 <- Corpus(VectorSource(u4$post))
-myCorpus5 <- Corpus(VectorSource(u5$post))
+tm_map(myCorpus1, function(x) iconv(enc2utf8(x), sub = "byte")) # problemas con el utf-8 en las pos impares
+tm_map(myCorpus2, function(x) iconv(enc2utf8(x), sub = "byte"))
+tm_map(myCorpus3, function(x) iconv(enc2utf8(x), sub = "byte"))
+tm_map(myCorpus4, function(x) iconv(enc2utf8(x), sub = "byte"))
+tm_map(myCorpus5, function(x) iconv(enc2utf8(x), sub = "byte"))
 
-# Para ver qué hay dentro del corpus
-inspect(myCorpus1)
-inspect(myCorpus1[1])
-writeLines(as.character(myCorpus1[[1]]))
+myCorpus1 <- tm_map(myCorpus1, PlainTextDocument)
+myCorpus2 <- tm_map(myCorpus2, PlainTextDocument)
+myCorpus3 <- tm_map(myCorpus3, PlainTextDocument)
+myCorpus4 <- tm_map(myCorpus4, PlainTextDocument)
+myCorpus5 <- tm_map(myCorpus5, PlainTextDocument)
+# convert to lower case
+myCorpus1 <- tm_map(myCorpus1, tolower,lazy=TRUE)
+myCorpus2 <- tm_map(myCorpus2, tolower,lazy=TRUE)
+myCorpus3 <- tm_map(myCorpus3, tolower,lazy=TRUE)
+myCorpus4 <- tm_map(myCorpus4, tolower,lazy=TRUE)
+myCorpus5 <- tm_map(myCorpus5, tolower,lazy=TRUE)
 
-# Funciones de limpieza
-removeURL <- function(x){
-  gsub("http[[:alnum:]]*", "", x)
-  gsub("www[[:alnum:]]*", "", x)
-}
-removeLaugh <- function(x){
-  gsub("\b(?:a*(?:ja)+j?|(?:l+o+)+l+)\b", "", x)
-  gsub("\b(?:a*(?:ha)+h?|(?:l+o+)+l+)\b", "", x)
-}
+# remove punctuation
+myCorpus1 <- tm_map(myCorpus1, removePunctuation,lazy=TRUE)
+myCorpus2 <- tm_map(myCorpus2, removePunctuation,lazy=TRUE)
+myCorpus3 <- tm_map(myCorpus3, removePunctuation,lazy=TRUE)
+myCorpus4 <- tm_map(myCorpus4, removePunctuation,lazy=TRUE)
+myCorpus5 <- tm_map(myCorpus5, removePunctuation,lazy=TRUE)
 
-# add extra stop words
-myStopwords <- c(stopwords('english'), stopwords('spanish'), "xd", "xD", "like", "RT", "etc",
-                 "csm", "para", "ser", "wtf", "sin", "mas", "una", "los", "nos")
-skipWords <- function(x) removeWords(x, myStopwords)
+# remove numbers
+myCorpus1 <- tm_map(myCorpus1, removeNumbers,lazy=TRUE)
+myCorpus2 <- tm_map(myCorpus2, removeNumbers,lazy=TRUE)
+myCorpus3 <- tm_map(myCorpus3, removeNumbers,lazy=TRUE)
+myCorpus4 <- tm_map(myCorpus4, removeNumbers,lazy=TRUE)
+myCorpus5 <- tm_map(myCorpus5, removeNumbers,lazy=TRUE)
 
-myStopwords2 <- c("est","esto","este")
-skipWords2 <- function(x) removeWords(x, myStopwords2)
+# remove URLs
+removeURL <- function(x) gsub("http[[:alnum:]]*", "", x)
+removeURL2 <- function(x) gsub("www[[:alnum:]]*", "", x)
+removejaja <- function(x) gsub("\b(?:a*(?:ja)+j?|(?:l+o+)+l+)\b", "", x)
+removehaha <- function(x) gsub("\b(?:a*(?:ha)+h?|(?:l+o+)+l+)\b", "", x)
 
-# Stemming words
-# por alguna no razón no agarra el spanish... Igual no creo que sea necesario hacer stemming
-#stemDoc_es <- function(x) stemDocument(x, language = meta(x, "spanish"))
-#stemDoc_es <- function(x) stemDocument(x, language ="spanish")
+myCorpus1 <- tm_map(myCorpus1, removeURL,lazy=TRUE)
+myCorpus1 <- tm_map(myCorpus1, removeURL2,lazy=TRUE)
+myCorpus1 <- tm_map(myCorpus1, removejaja,lazy=TRUE)
+myCorpus1 <- tm_map(myCorpus1, removehaha,lazy=TRUE)
 
-cleanFuns <- list(tolower, removePunctuation, removeNumbers, skipWords, removeURL,
-                  removeLaugh, stemDocument, skipWords2)
+myCorpus2 <- tm_map(myCorpus2, removeURL,lazy=TRUE)
+myCorpus2 <- tm_map(myCorpus2, removeURL2,lazy=TRUE)
+myCorpus2 <- tm_map(myCorpus2, removejaja,lazy=TRUE)
+myCorpus2 <- tm_map(myCorpus2, removehaha,lazy=TRUE)
 
-# Limpieza de cada corpus
-myCorpus1 <- tm_map(myCorpus1, FUN = tm_reduce, tmFuns = cleanFuns, lazy = TRUE)
-myCorpus2 <- tm_map(myCorpus2, FUN = tm_reduce, tmFuns = cleanFuns, lazy = TRUE)
-myCorpus3 <- tm_map(myCorpus3, FUN = tm_reduce, tmFuns = cleanFuns, lazy = TRUE)
-myCorpus4 <- tm_map(myCorpus4, FUN = tm_reduce, tmFuns = cleanFuns, lazy = TRUE)
-myCorpus5 <- tm_map(myCorpus5, FUN = tm_reduce, tmFuns = cleanFuns, lazy = TRUE)
+myCorpus3 <- tm_map(myCorpus3, removeURL,lazy=TRUE)
+myCorpus3 <- tm_map(myCorpus3, removeURL2,lazy=TRUE)
+myCorpus3 <- tm_map(myCorpus3, removejaja,lazy=TRUE)
+myCorpus3 <- tm_map(myCorpus3, removehaha,lazy=TRUE)
+
+myCorpus4 <- tm_map(myCorpus4, removeURL,lazy=TRUE)
+myCorpus4 <- tm_map(myCorpus4, removeURL2,lazy=TRUE)
+myCorpus4 <- tm_map(myCorpus4, removejaja,lazy=TRUE)
+myCorpus4 <- tm_map(myCorpus4, removehaha,lazy=TRUE)
+
+myCorpus5 <- tm_map(myCorpus5, removeURL,lazy=TRUE)
+myCorpus5 <- tm_map(myCorpus5, removeURL2,lazy=TRUE)
+myCorpus5 <- tm_map(myCorpus5, removejaja,lazy=TRUE)
+myCorpus5 <- tm_map(myCorpus5, removehaha,lazy=TRUE)
+
+# add two extra stop words: "available" and "via"
+myStopwords <- c(stopwords('english'),stopwords('spanish'),"NA","xd","xD","like","RT","etc","csm","para","ser","wtf","sin","mas","una","los","nos")
+# remove "r" and "big" from stopwords
+#myStopwords <- setdiff(myStopwords, c("r", "big"))
+# remove stopwords from corpus
+myCorpus1 <- tm_map(myCorpus1, removeWords, myStopwords,lazy=TRUE)
+myCorpus2 <- tm_map(myCorpus2, removeWords, myStopwords,lazy=TRUE)
+myCorpus3 <- tm_map(myCorpus3, removeWords, myStopwords,lazy=TRUE)
+myCorpus4 <- tm_map(myCorpus4, removeWords, myStopwords,lazy=TRUE)
+myCorpus5 <- tm_map(myCorpus5, removeWords, myStopwords,lazy=TRUE)
+
+
+
+#Stemming words
+library(Snowball)
+library(RWeka)
+library(rJava)
+library(RWekajars)
+
+# keep a copy of corpus to use later as a dictionary for stem
+#myCorpusCopy <- myCorpus
+
+
+myCorpus1 <- tm_map(myCorpus1, stemDocument,language="english",lazy=TRUE)
+myCorpus2 <- tm_map(myCorpus2, stemDocument,language="english",lazy=TRUE)
+myCorpus3 <- tm_map(myCorpus3, stemDocument,language="english",lazy=TRUE)
+myCorpus4 <- tm_map(myCorpus4, stemDocument,language="english",lazy=TRUE)
+myCorpus5 <- tm_map(myCorpus5, stemDocument,language="english",lazy=TRUE)
+
+myStopwords2 <- c("est","esto","xd","jajajaja","y","un","una","te","a","el","d","jajaja","like","para","que","the","mira","the")
+
+myCorpus1 <- tm_map(myCorpus1, PlainTextDocument)
+myCorpus1 <- tm_map(myCorpus1, removeWords, myStopwords2,lazy=TRUE)
+
+myCorpus2 <- tm_map(myCorpus2, PlainTextDocument)
+myCorpus2 <- tm_map(myCorpus2, removeWords, myStopwords2,lazy=TRUE)
+
+myCorpus3 <- tm_map(myCorpus3, PlainTextDocument)
+myCorpus3 <- tm_map(myCorpus3, removeWords, myStopwords2,lazy=TRUE)
+
+myCorpus4 <- tm_map(myCorpus4, PlainTextDocument)
+myCorpus4 <- tm_map(myCorpus4, removeWords, myStopwords2,lazy=TRUE)
+
+myCorpus5 <- tm_map(myCorpus5, PlainTextDocument)
+myCorpus5 <- tm_map(myCorpus5, removeWords, myStopwords2,lazy=TRUE)
 
 #para ver que hay en los primeros 500
 for (i in 1:500) {
+  
   cat(paste("[[", i, "]] ", sep=""))
-  writeLines(strwrap(myCorpus2[[i]], width=85))
+  writeLines(strwrap(myCorpus2[[i]], width=73))
+  
 }
+#Matrices de term document para cada usuario
 
-# Matrices de term document para cada usuario
-myTdm1 <- TermDocumentMatrix(myCorpus1,control=list(wordLengths=c(1,Inf)))
+myTdm1 <- TermDocumentMatrix(myCorpus1,control=list(wordLengths=c(1,Inf))) #Matriz
 myTdm2 <- TermDocumentMatrix(myCorpus2,control=list(wordLengths=c(1,Inf)))
 myTdm3 <- TermDocumentMatrix(myCorpus3,control=list(wordLengths=c(1,Inf)))
 myTdm4 <- TermDocumentMatrix(myCorpus4,control=list(wordLengths=c(1,Inf)))
@@ -114,6 +178,9 @@ findFreqTerms(myTdm5, lowfreq=25)
 termFrequency5 <- rowSums(as.matrix(myTdm5))
 termFrequency5 <- subset(termFrequency5, termFrequency5>=15)
 
+#Probando el intersect
+
+#intersect(myCorpus1,myCorpus2)
 
 
 #Impresion Grafica usuario 1
@@ -122,8 +189,8 @@ library(wordcloud)
 m <- as.matrix(myTdm1)
 wordFreq <- sort(rowSums(m), decreasing=TRUE)
 set.seed (375)
-grayLevels <- gray( (wordFreq+10) / (max(wordFreq)+10))
-wordcloud(words=names(wordFreq), freq=wordFreq, min.freq=3,random.order=F, colors=grayLevels)
+#grayLevels <- gray( (wordFreq+10) / (max(wordFreq)+10))
+wordcloud(words=names(wordFreq), freq=wordFreq, min.freq=10,random.order=F, colors=brewer.pal(6, "Dark2"))
 
 
 # remove sparse terms usuario 1
@@ -164,8 +231,8 @@ library(wordcloud)
 m <- as.matrix(myTdm2)
 wordFreq <- sort(rowSums(m), decreasing=TRUE)
 set.seed (375)
-grayLevels <- gray( (wordFreq+10) / (max(wordFreq)+10))
-wordcloud(words=names(wordFreq), freq=wordFreq, min.freq=3,random.order=F, colors=grayLevels)
+#grayLevels <- gray( (wordFreq+10) / (max(wordFreq)+10))
+wordcloud(words=names(wordFreq), freq=wordFreq, min.freq=10,random.order=F, colors=brewer.pal(6, "Dark2"))
 
 
 # remove sparse terms usuario 2
@@ -173,7 +240,7 @@ myTdmAux <- removeSparseTerms(myTdm2, sparse=0.985)
 m2 <- as.matrix(myTdmAux)
 frequency <- colSums(m2)
 frequency <- sort(frequency, decreasing=TRUE)
-frequency
+#frequency
 # cluster terms
 distMatrix <- dist(scale(m2))
 fit <- hclust(distMatrix, method="single")
@@ -207,8 +274,8 @@ library(wordcloud)
 m <- as.matrix(myTdm3)
 wordFreq <- sort(rowSums(m), decreasing=TRUE)
 set.seed (375)
-grayLevels <- gray( (wordFreq+10) / (max(wordFreq)+10))
-wordcloud(words=names(wordFreq), freq=wordFreq, min.freq=3,random.order=F, colors=grayLevels)
+#grayLevels <- gray( (wordFreq+10) / (max(wordFreq)+10))
+wordcloud(words=names(wordFreq), freq=wordFreq, min.freq=10,random.order=F, colors=brewer.pal(6, "Dark2"))
 
 
 # remove sparse terms usuario 3
@@ -216,7 +283,7 @@ myTdmAux <- removeSparseTerms(myTdm3, sparse=0.985)
 m2 <- as.matrix(myTdmAux)
 frequency <- colSums(m2)
 frequency <- sort(frequency, decreasing=TRUE)
-frequency
+#frequency
 # cluster terms
 distMatrix <- dist(scale(m2))
 fit <- hclust(distMatrix, method="single")
@@ -252,8 +319,8 @@ library(wordcloud)
 m <- as.matrix(myTdm4)
 wordFreq <- sort(rowSums(m), decreasing=TRUE)
 set.seed (375)
-grayLevels <- gray( (wordFreq+10) / (max(wordFreq)+10))
-wordcloud(words=names(wordFreq), freq=wordFreq, min.freq=3,random.order=F, colors=grayLevels)
+#grayLevels <- gray( (wordFreq+10) / (max(wordFreq)+10))
+wordcloud(words=names(wordFreq), freq=wordFreq, min.freq=10,random.order=F, colors=brewer.pal(6, "Dark2"))
 
 
 # remove sparse terms usuario 4
@@ -261,7 +328,7 @@ myTdmAux <- removeSparseTerms(myTdm4, sparse=0.985)
 m2 <- as.matrix(myTdmAux)
 frequency <- colSums(m2)
 frequency <- sort(frequency, decreasing=TRUE)
-frequency
+#frequency
 # cluster terms
 distMatrix <- dist(scale(m2))
 fit <- hclust(distMatrix, method="single")
@@ -295,8 +362,8 @@ library(wordcloud)
 m <- as.matrix(myTdm5)
 wordFreq <- sort(rowSums(m), decreasing=TRUE)
 set.seed (375)
-grayLevels <- gray( (wordFreq+10) / (max(wordFreq)+10))
-wordcloud(words=names(wordFreq), freq=wordFreq, min.freq=3,random.order=F, colors=grayLevels)
+#grayLevels <- gray( (wordFreq+10) / (max(wordFreq)+10))
+wordcloud(words=names(wordFreq), freq=wordFreq, min.freq=3,random.order=F, colors=brewer.pal(6, "Dark2"))
 
 
 # remove sparse terms usuario 5
@@ -304,7 +371,7 @@ myTdmAux <- removeSparseTerms(myTdm5, sparse=0.985)
 m2 <- as.matrix(myTdmAux)
 frequency <- colSums(m2)
 frequency <- sort(frequency, decreasing=TRUE)
-frequency
+#frequency
 # cluster terms
 distMatrix <- dist(scale(m2))
 fit <- hclust(distMatrix, method="single")
@@ -329,6 +396,8 @@ FreqMat5
 #write.csv(FreqMat2, file = "grupos.csv")
 
 
+
+intersect(FreqMat5$ST,FreqMat4$ST)
 
 
 
